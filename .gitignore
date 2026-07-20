@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.DS_Store
+.agents/
+.git/
+.vscode/
+node_modules/
+server.*.log
