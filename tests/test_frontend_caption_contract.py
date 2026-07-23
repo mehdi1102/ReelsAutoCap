@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 import unittest
 
 
@@ -12,7 +12,16 @@ class FrontendCaptionContractTests(unittest.TestCase):
 
         self.assertIn('<option value="en-US" selected>English</option>', html)
         self.assertIn('<option value="roman-ur-PK">Roman Urdu / Hinglish</option>', html)
+        self.assertIn('<option value="auto">Auto - Detect best language</option>', html)
         self.assertIn("languageSelect.value = 'en-US';", script)
+
+    def test_best_captions_mode_is_available_with_status_copy(self):
+        html = (ROOT / 'static' / 'index.html').read_text(encoding='utf-8')
+        script = (ROOT / 'static' / 'app.js').read_text(encoding='utf-8')
+
+        self.assertIn('<option value="best">Best Captions (Auto choose engine)</option>', html)
+        self.assertIn('id="caption-engine-status"', html)
+        self.assertIn('engineResults', script)
 
     def test_overlay_uses_a_visible_video_viewport(self):
         html = (ROOT / 'static' / 'index.html').read_text(encoding='utf-8')
@@ -45,3 +54,4 @@ class FrontendCaptionContractTests(unittest.TestCase):
         self.assertIn('function setCaptionActionsBusy(isBusy)', script)
 if __name__ == '__main__':
     unittest.main()
+

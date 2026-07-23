@@ -369,11 +369,13 @@
                             <div class="form-section">
                                 <label for="engine-select">Transcription Method</label>
                                 <select id="engine-select" class="form-control">
+                                    <option value="best">Best Captions (Auto choose engine)</option>
                                     <option value="free" selected>Standard Captions (Google API) [Free & Fast]</option>
                                     <option value="local">Local AI Whisper (Offline) [Free]</option>
                                     <option value="groq">Groq Cloud Whisper (Large-v3) [Free Cloud]</option>
                                     <option value="gemini">Gemini AI Enhanced [Access Key]</option>
                                 </select>
+                                <div id="caption-engine-status" class="caption-engine-status hidden" style="margin-top: 8px; padding: 8px; border-radius: var(--radius-sm); font-size: 0.85rem; background: var(--bg-surface); border: 1px solid var(--border-color);"></div>
                             </div>
 
                             <div class="form-section">
@@ -381,7 +383,7 @@
                                 <select id="language-select" class="form-control">
                                     <option value="en-US" selected>English</option>
                                     <option value="roman-ur-PK">Roman Urdu / Hinglish</option>
-                                    <option value="auto">Auto-Detect</option>
+                                    <option value="auto">Auto - Detect best language</option>
                                     <option value="ur-PK">Urdu Script</option>
                                     <option value="hi-IN">Hindi</option>
                                     <option value="es-ES">Spanish</option>

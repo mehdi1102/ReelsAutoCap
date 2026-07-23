@@ -313,6 +313,76 @@ def segment_similarity(a, b):
         return 0
     return len(words_a & words_b) / max(len(words_a | words_b), 1)
 
+def validate_segments_for_language(segments, language):
+    warnings = []
+    validated = []
+    for seg in segments or []:
+        current = dict(seg)
+        text = str(current.get('text', '')).strip()
+        if not text:
+            continue
+        if current.get('type') != 'music' and wants_roman_urdu(language) and contains_urdu_script(text):
+            warnings.append('Urdu script rejected because Roman Urdu / Hinglish requires Latin letters only.')
+            continue
+        if current.get('type') != 'music':
+            current['text'] = normalize_spoken_numbers(text, language)
+        else:
+            current['text'] = text or MUSIC_MARKER
+        validated.append(current)
+    return clean_subtitle_timeline(validated), warnings
+
+
+def score_caption_result(segments, language):
+    speech_segments = [seg for seg in segments or [] if seg.get('type') != 'music']
+    if not speech_segments:
+        return -1
+
+    words = []
+    confidence_total = 0
+    confidence_count = 0
+    duration_total = 0
+    readability_penalty = 0
+    script_penalty = 0
+
+    for seg in speech_segments:
+        text = str(seg.get('text', '')).strip()
+        seg_words = transcript_words(text)
+        words.extend(seg_words)
+        confidence = float(seg.get('confidence', 0) or 0)
+        if confidence:
+            confidence_total += confidence
+            confidence_count += 1
+        duration_total += max(0, float(seg.get('end', 0)) - float(seg.get('start', 0)))
+        if len(seg_words) > 10 or len(text) > 72:
+            readability_penalty += 0.25
+        if wants_roman_urdu(language) and contains_urdu_script(text):
+            script_penalty += 4
+
+    avg_confidence = confidence_total / max(confidence_count, 1)
+    word_score = min(len(words), 140) * 0.03
+    segment_score = min(len(speech_segments), 40) * 0.08
+    duration_score = min(duration_total, 180) * 0.01
+    return avg_confidence + word_score + segment_score + duration_score - readability_penalty - script_penalty
+
+
+def merge_missing_segments(primary_segments, secondary_segments):
+    merged = [dict(seg) for seg in primary_segments]
+    for seg in secondary_segments or []:
+        if seg.get('type') == 'music':
+            continue
+        start = float(seg.get('start', 0))
+        end = float(seg.get('end', start))
+        if not str(seg.get('text', '')).strip():
+            continue
+        overlaps_existing = any(
+            ranges_overlap(start, end, float(existing.get('start', 0)), float(existing.get('end', 0))) > 0.35
+            for existing in merged
+        )
+        if not overlaps_existing:
+            merged.append(dict(seg))
+    return clean_subtitle_timeline(merged)
+
+
 def clean_subtitle_timeline(segments):
     cleaned = []
     for seg in sorted(segments, key=lambda item: (float(item.get('start', 0)), float(item.get('end', 0)))):
@@ -653,66 +723,69 @@ def group_words_into_segments(words, max_words=3, max_duration=2.0):
             
     return segments
 
+WHISPER_INFERENCE_LOCK = threading.Lock()
+
 # --- Local Faster-Whisper Pipeline ---
 def transcribe_local_whisper(audio_path, language):
-    model = get_whisper_model()
-    
-    lang_code = None
-    if language and language != 'auto':
-        if language.startswith('roman'):
-            lang_code = 'ur'
-        else:
-            lang_code = language.split('-')[0]
-            
-    prompt_text = "Transcribe the speech exactly."
-    if language and language.startswith('roman'):
-        prompt_text = "Transcribe the Roman Urdu / Hinglish speech exactly using Latin script/English letters, for example 'mein', 'tum', 'kya', 'acha'."
+    with WHISPER_INFERENCE_LOCK:
+        model = get_whisper_model()
         
-    print(f"Running local Faster-Whisper on {audio_path}...")
-    segments, info = model.transcribe(
-        audio_path,
-        beam_size=5,
-        word_timestamps=True,
-        vad_filter=True,
-        vad_parameters=dict(min_speech_duration_ms=250, min_silence_duration_ms=400),
-        language=lang_code,
-        initial_prompt=prompt_text
-    )
-    
-    words = []
-    for segment in segments:
-        if segment.words:
-            for w in segment.words:
-                words.append({
-                    'word': w.word,
-                    'start': w.start,
-                    'end': w.end,
-                    'probability': w.probability
-                })
+        lang_code = None
+        if language and language != 'auto':
+            if language.startswith('roman'):
+                lang_code = 'ur'
+            else:
+                lang_code = language.split('-')[0]
                 
-    if words:
-        return group_words_into_segments(words)
+        prompt_text = "Transcribe the speech exactly."
+        if language and language.startswith('roman'):
+            prompt_text = "Transcribe the Roman Urdu / Hinglish speech exactly using Latin script/English letters, for example 'mein', 'tum', 'kya', 'acha'."
+            
+        print(f"Running local Faster-Whisper on {audio_path}...")
+        segments, info = model.transcribe(
+            audio_path,
+            beam_size=5,
+            word_timestamps=True,
+            vad_filter=True,
+            vad_parameters=dict(min_speech_duration_ms=250, min_silence_duration_ms=400),
+            language=lang_code,
+            initial_prompt=prompt_text
+        )
         
-    # Fallback to segment-level timings if word timestamps are missing
-    print("Warning: Word-level timestamps missing. Falling back to segment-level.")
-    segments, info = model.transcribe(
-        audio_path,
-        beam_size=5,
-        word_timestamps=False,
-        vad_filter=True,
-        language=lang_code,
-        initial_prompt=prompt_text
-    )
-    out = []
-    for segment in segments:
-        out.append({
-            'start': round(segment.start, 2),
-            'end': round(segment.end, 2),
-            'text': segment.text.strip(),
-            'confidence': 1.0,
-            'words': []
-        })
-    return out
+        words = []
+        for segment in segments:
+            if segment.words:
+                for w in segment.words:
+                    words.append({
+                        'word': w.word,
+                        'start': w.start,
+                        'end': w.end,
+                        'probability': w.probability
+                    })
+                    
+        if words:
+            return group_words_into_segments(words)
+            
+        # Fallback to segment-level timings if word timestamps are missing
+        print("Warning: Word-level timestamps missing. Falling back to segment-level.")
+        segments, info = model.transcribe(
+            audio_path,
+            beam_size=5,
+            word_timestamps=False,
+            vad_filter=True,
+            language=lang_code,
+            initial_prompt=prompt_text
+        )
+        out = []
+        for segment in segments:
+            out.append({
+                'start': round(segment.start, 2),
+                'end': round(segment.end, 2),
+                'text': segment.text.strip(),
+                'confidence': 1.0,
+                'words': []
+            })
+        return out
 
 # --- Groq Cloud Whisper API (Vercel Serverless Ready) ---
 def transcribe_with_groq(audio_path, language, api_key):
@@ -938,7 +1011,50 @@ def transcribe_audio_bytes(audio_bytes, engine, language, api_key=None, model='g
     
     try:
         preprocess_audio(temp_in, temp_out)
-        return clean_subtitle_timeline(transcribe_audio_file(temp_out, engine, language, api_key, model))
+        
+        if engine == 'best':
+            candidate_engines = []
+            if api_key:
+                candidate_engines.append('gemini')
+            candidate_engines.extend(['local', 'free'])
+            
+            best_engine = None
+            best_score = -999999
+            best_subtitles = []
+            warnings = []
+            scores = {}
+            
+            for candidate in candidate_engines:
+                try:
+                    sub = transcribe_audio_file(temp_out, candidate, language, api_key, model)
+                    validated, warn = validate_segments_for_language(sub, language)
+                    score = score_caption_result(validated, language)
+                    
+                    scores[candidate] = score
+                    warnings.extend(warn)
+                    
+                    if score > best_score:
+                        best_score = score
+                        best_engine = candidate
+                        best_subtitles = validated
+                except Exception as ex:
+                    print(f"Candidate engine '{candidate}' failed: {ex}")
+                    scores[candidate] = -999999
+                    
+            if not best_engine:
+                best_engine = 'free'
+                best_subtitles = []
+                
+            return {
+                'subtitles': best_subtitles,
+                'engineResults': {
+                    'selected': best_engine,
+                    'warnings': list(set(warnings)),
+                    'scores': scores
+                }
+            }
+        else:
+            return clean_subtitle_timeline(transcribe_audio_file(temp_out, engine, language, api_key, model))
     finally:
         for path in (temp_in, temp_out):
             if path and os.path.exists(path):
@@ -986,12 +1102,12 @@ def run_video_transcription_job(job_id, source_path, duration, engine, language,
         ffmpeg_path = get_ffmpeg_executable()
         if not ffmpeg_path:
             raise RuntimeError("Long video mode needs FFmpeg. Install ffmpeg or keep using short-video mode.")
-
         duration = float(duration or 0)
         if not math.isfinite(duration) or duration <= 0:
             duration = 1.0
             
         all_segments = []
+        engine_results = None
 
         with tempfile.TemporaryDirectory(prefix='caption_chunks_') as tmpdir:
             if engine in ('local', 'groq', 'free'):
@@ -1011,6 +1127,60 @@ def run_video_transcription_job(job_id, source_path, duration, engine, language,
                     message='Transcribing with AI speech pipeline...'
                 )
                 all_segments = transcribe_audio_file(wav_path, engine, language, api_key, model)
+            elif engine == 'best':
+                wav_path = os.path.join(tmpdir, 'full_audio.wav')
+                update_job(
+                    job_id,
+                    status='processing',
+                    progress=15,
+                    message='Extracting audio track...'
+                )
+                extract_wav_chunk(ffmpeg_path, source_path, wav_path, 0, duration)
+                
+                candidate_engines = []
+                if api_key:
+                    candidate_engines.append('gemini')
+                candidate_engines.extend(['local', 'free'])
+                
+                best_engine = None
+                best_score = -999999
+                best_subtitles = []
+                warnings = []
+                scores = {}
+                
+                for candidate in candidate_engines:
+                    try:
+                        update_job(
+                            job_id,
+                            status='processing',
+                            progress=45,
+                            message=f'Evaluating engine: {candidate}...'
+                        )
+                        sub = transcribe_audio_file(wav_path, candidate, language, api_key, model)
+                        validated, warn = validate_segments_for_language(sub, language)
+                        score = score_caption_result(validated, language)
+                        
+                        scores[candidate] = score
+                        warnings.extend(warn)
+                        
+                        if score > best_score:
+                            best_score = score
+                            best_engine = candidate
+                            best_subtitles = validated
+                    except Exception as ex:
+                        print(f"Candidate engine '{candidate}' failed: {ex}")
+                        scores[candidate] = -999999
+                        
+                if not best_engine:
+                    best_engine = 'free'
+                    best_subtitles = []
+                    
+                all_segments = best_subtitles
+                engine_results = {
+                    'selected': best_engine,
+                    'warnings': list(set(warnings)),
+                    'scores': scores
+                }
             else:
                 # Gemini chunked flow
                 chunk_seconds = 150
@@ -1058,6 +1228,7 @@ def run_video_transcription_job(job_id, source_path, duration, engine, language,
             progress=100,
             message='Captions ready',
             subtitles=all_segments,
+            engineResults=engine_results,
             completed_at=time.time()
         )
     except urllib.error.HTTPError as e:
@@ -1090,6 +1261,8 @@ def transcribe():
         api_key = request.headers.get('X-API-Key') or request.form.get('api_key')
         model = request.form.get('model', 'gemini-1.5-flash')
         subtitles = transcribe_audio_bytes(audio_bytes, engine, language, api_key, model)
+        if isinstance(subtitles, dict):
+            return jsonify(subtitles)
         return jsonify({'subtitles': subtitles})
     except urllib.error.HTTPError as e:
         import traceback
@@ -1164,3 +1337,4 @@ if __name__ == '__main__':
     print("Starting video caption generator server...")
     print("Open http://127.0.0.1:5000 in your browser.")
     app.run(host='127.0.0.1', port=5000, debug=True)
+

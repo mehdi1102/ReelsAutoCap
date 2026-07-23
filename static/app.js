@@ -2,6 +2,7 @@
 let videoFile = null;
 let videoUrl = null;
 let subtitles = [];
+let engineResults = null;
 let isTranscribing = false;
 let subtitleOverlayVisible = true;
 let activeSegmentIndex = -1;
@@ -1460,7 +1461,7 @@ function updateTranscribeButtonState() {
     const hasKey = apiKeyInput.value.trim().length > 0;
     const hasVideo = videoFile !== null;
     
-    if (engine === 'free' || engine === 'local') {
+    if (engine === 'free' || engine === 'local' || engine === 'best') {
         transcribeBtn.disabled = !(hasVideo && !isTranscribing);
         if (!hasVideo) {
             transcribeHelpMsg.textContent = "Please import a video to generate captions.";
@@ -1581,7 +1582,7 @@ async function triggerTranscription() {
             const partNum = i + 1;
             const totalParts = wavChunks.length;
             
-            const statusDesc = (engine === 'free' || engine === 'local')
+            const statusDesc = (engine === 'free' || engine === 'local' || engine === 'best')
                 ? `Listening closely to this part of your reel`
                 : `Enhancing captions for this part of your reel`;
                 
@@ -1732,6 +1733,14 @@ async function uploadAndTranscribe(wavBlob, apiKey, language, model, engine) {
         throw new Error(result.error || "Server transcription request failed.");
     }
 
+    if (result.engineResults) {
+        engineResults = result.engineResults;
+        displayEngineStatus(engineResults);
+    } else {
+        engineResults = null;
+        displayEngineStatus(null);
+    }
+
     if (result.subtitles) {
         return result.subtitles;
     } else if (result.text_response) {
@@ -1794,6 +1803,13 @@ async function transcribeVideoOnServer(file, apiKey, language, model, engine) {
         updateProgressStatus("Transcribing video...", status.message || "Processing audio chunks", Math.min(lastProgress, 96));
 
         if (status.status === 'complete') {
+            if (status.engineResults) {
+                engineResults = status.engineResults;
+                displayEngineStatus(engineResults);
+            } else {
+                engineResults = null;
+                displayEngineStatus(null);
+            }
             return status.subtitles || [];
         }
         if (status.status === 'error') {
@@ -1804,6 +1820,21 @@ async function transcribeVideoOnServer(file, apiKey, language, model, engine) {
 
 function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function displayEngineStatus(results) {
+    const statusEl = document.getElementById('caption-engine-status');
+    if (!statusEl) return;
+    if (!results) {
+        statusEl.classList.add('hidden');
+        return;
+    }
+    statusEl.classList.remove('hidden');
+    let text = `<strong>Selected Engine:</strong> ${results.selected.toUpperCase()}`;
+    if (results.warnings && results.warnings.length > 0) {
+        text += `<br><span style="color: var(--danger); font-size: 0.8rem; display: block; margin-top: 4px;">⚠️ ${results.warnings.join(', ')}</span>`;
+    }
+    statusEl.innerHTML = text;
 }
 
 // Smart Emojis Dictionary for Social Media Captioning
