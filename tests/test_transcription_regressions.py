@@ -1,4 +1,4 @@
-﻿import io
+import io
 import math
 import struct
 import unittest
@@ -82,10 +82,10 @@ class TranscriptionRegressionTests(unittest.TestCase):
             result = app.transcribe_audio_bytes(build_loud_wav(), 'best', 'en-US')
 
         self.assertNotIn('gemini', calls)
-        self.assertIn('local', calls)
+        self.assertNotIn('groq', calls)
         self.assertIn('free', calls)
-        self.assertEqual('local', result['engineResults']['selected'])
-        self.assertEqual('local caption', result['subtitles'][0]['text'])
+        self.assertEqual('free', result['engineResults']['selected'])
+        self.assertEqual('free caption', result['subtitles'][0]['text'])
 
     def test_best_engine_uses_gemini_when_api_key_is_present(self):
         calls = []
@@ -105,7 +105,29 @@ class TranscriptionRegressionTests(unittest.TestCase):
             result = app.transcribe_audio_bytes(build_loud_wav(), 'best', 'en-US', api_key='key')
 
         self.assertIn('gemini', calls)
+        self.assertIn('free', calls)
         self.assertEqual('gemini', result['engineResults']['selected'])
+
+    def test_best_engine_uses_groq_when_groq_api_key_is_present(self):
+        calls = []
+
+        def fake_transcribe_audio_file(audio_path, engine, language, api_key=None, model='gemini-1.5-flash'):
+            calls.append(engine)
+            return [{
+                'start': 0,
+                'end': 1,
+                'text': f'{engine} caption with more useful words',
+                'type': 'speech',
+                'confidence': 0.9,
+            }]
+
+        with patch.object(app, 'preprocess_audio', side_effect=lambda src, dst: None), \
+             patch.object(app, 'transcribe_audio_file', side_effect=fake_transcribe_audio_file):
+            result = app.transcribe_audio_bytes(build_loud_wav(), 'best', 'en-US', api_key='gsk_key')
+
+        self.assertIn('groq', calls)
+        self.assertIn('free', calls)
+        self.assertEqual('groq', result['engineResults']['selected'])
 
     def test_best_engine_rejects_urdu_script_for_roman_urdu(self):
         def fake_transcribe_audio_file(audio_path, engine, language, api_key=None, model='gemini-1.5-flash'):
@@ -117,7 +139,7 @@ class TranscriptionRegressionTests(unittest.TestCase):
              patch.object(app, 'transcribe_audio_file', side_effect=fake_transcribe_audio_file):
             result = app.transcribe_audio_bytes(build_loud_wav(), 'best', 'roman-ur-PK', api_key='key')
 
-        self.assertEqual('local', result['engineResults']['selected'])
+        self.assertEqual('free', result['engineResults']['selected'])
         self.assertEqual('yeh urdu hai', result['subtitles'][0]['text'])
         self.assertTrue(any('Urdu script' in warning for warning in result['engineResults']['warnings']))
 

@@ -606,34 +606,7 @@ def transcribe_free_engine(audio_bytes, language):
 
     return subtitles
 
-# --- Faster-Whisper Lazy Loader ---
-WHISPER_MODEL = None
-WHISPER_MODEL_LOCK = threading.Lock()
 
-def get_whisper_model():
-    global WHISPER_MODEL
-    if WHISPER_MODEL is None:
-        with WHISPER_MODEL_LOCK:
-            if WHISPER_MODEL is None:
-                # Detect CUDA availability
-                try:
-                    import torch
-                    device = "cuda" if torch.cuda.is_available() else "cpu"
-                except ImportError:
-                    device = "cpu"
-                
-                compute_type = "float16" if device == "cuda" else "int8"
-                model_size = os.environ.get("WHISPER_MODEL_SIZE", "base")
-                
-                print(f"Initializing WhisperModel '{model_size}' on '{device}' with '{compute_type}'...")
-                try:
-                    from faster_whisper import WhisperModel
-                    WHISPER_MODEL = WhisperModel(model_size, device=device, compute_type=compute_type)
-                except Exception as e:
-                    print(f"CUDA initialization failed ({e}). Falling back to CPU/int8...")
-                    from faster_whisper import WhisperModel
-                    WHISPER_MODEL = WhisperModel(model_size, device="cpu", compute_type="int8")
-    return WHISPER_MODEL
 
 # --- Audio Preprocessing Normalization & Noise Filtering ---
 def preprocess_audio(input_path, output_path):
@@ -723,69 +696,7 @@ def group_words_into_segments(words, max_words=3, max_duration=2.0):
             
     return segments
 
-WHISPER_INFERENCE_LOCK = threading.Lock()
 
-# --- Local Faster-Whisper Pipeline ---
-def transcribe_local_whisper(audio_path, language):
-    with WHISPER_INFERENCE_LOCK:
-        model = get_whisper_model()
-        
-        lang_code = None
-        if language and language != 'auto':
-            if language.startswith('roman'):
-                lang_code = 'ur'
-            else:
-                lang_code = language.split('-')[0]
-                
-        prompt_text = "Transcribe the speech exactly."
-        if language and language.startswith('roman'):
-            prompt_text = "Transcribe the Roman Urdu / Hinglish speech exactly using Latin script/English letters, for example 'mein', 'tum', 'kya', 'acha'."
-            
-        print(f"Running local Faster-Whisper on {audio_path}...")
-        segments, info = model.transcribe(
-            audio_path,
-            beam_size=5,
-            word_timestamps=True,
-            vad_filter=True,
-            vad_parameters=dict(min_speech_duration_ms=250, min_silence_duration_ms=400),
-            language=lang_code,
-            initial_prompt=prompt_text
-        )
-        
-        words = []
-        for segment in segments:
-            if segment.words:
-                for w in segment.words:
-                    words.append({
-                        'word': w.word,
-                        'start': w.start,
-                        'end': w.end,
-                        'probability': w.probability
-                    })
-                    
-        if words:
-            return group_words_into_segments(words)
-            
-        # Fallback to segment-level timings if word timestamps are missing
-        print("Warning: Word-level timestamps missing. Falling back to segment-level.")
-        segments, info = model.transcribe(
-            audio_path,
-            beam_size=5,
-            word_timestamps=False,
-            vad_filter=True,
-            language=lang_code,
-            initial_prompt=prompt_text
-        )
-        out = []
-        for segment in segments:
-            out.append({
-                'start': round(segment.start, 2),
-                'end': round(segment.end, 2),
-                'text': segment.text.strip(),
-                'confidence': 1.0,
-                'words': []
-            })
-        return out
 
 # --- Groq Cloud Whisper API (Vercel Serverless Ready) ---
 def transcribe_with_groq(audio_path, language, api_key):
@@ -989,8 +900,6 @@ def transcribe_audio_file(audio_path, engine, language, api_key=None, model='gem
         return transcribe_with_gemini(audio_bytes, language, api_key, model)
     elif engine == 'groq':
         return transcribe_with_groq(audio_path, language, api_key)
-    elif engine == 'local':
-        return transcribe_local_whisper(audio_path, language)
     else: # free (Google SpeechRecognition legacy)
         with open(audio_path, 'rb') as f:
             audio_bytes = f.read()
@@ -1015,8 +924,11 @@ def transcribe_audio_bytes(audio_bytes, engine, language, api_key=None, model='g
         if engine == 'best':
             candidate_engines = []
             if api_key:
-                candidate_engines.append('gemini')
-            candidate_engines.extend(['local', 'free'])
+                if api_key.startswith('gsk_'):
+                    candidate_engines.append('groq')
+                else:
+                    candidate_engines.append('gemini')
+            candidate_engines.append('free')
             
             best_engine = None
             best_score = -999999
@@ -1110,7 +1022,7 @@ def run_video_transcription_job(job_id, source_path, duration, engine, language,
         engine_results = None
 
         with tempfile.TemporaryDirectory(prefix='caption_chunks_') as tmpdir:
-            if engine in ('local', 'groq', 'free'):
+            if engine in ('groq', 'free'):
                 wav_path = os.path.join(tmpdir, 'full_audio.wav')
                 update_job(
                     job_id,
@@ -1139,8 +1051,11 @@ def run_video_transcription_job(job_id, source_path, duration, engine, language,
                 
                 candidate_engines = []
                 if api_key:
-                    candidate_engines.append('gemini')
-                candidate_engines.extend(['local', 'free'])
+                    if api_key.startswith('gsk_'):
+                        candidate_engines.append('groq')
+                    else:
+                        candidate_engines.append('gemini')
+                candidate_engines.append('free')
                 
                 best_engine = None
                 best_score = -999999

@@ -740,7 +740,7 @@ function updateOverlayClasses(customStyle = null, skipSync = false) {
 // --- Transcription Engine UI View ---
 function toggleEngineUI() {
     const engine = engineSelect.value;
-    if (engine === 'free' || engine === 'local') {
+    if (engine === 'free') {
         settingsPanel.classList.add('hidden');
     } else {
         settingsPanel.classList.remove('hidden');
@@ -1461,7 +1461,7 @@ function updateTranscribeButtonState() {
     const hasKey = apiKeyInput.value.trim().length > 0;
     const hasVideo = videoFile !== null;
     
-    if (engine === 'free' || engine === 'local' || engine === 'best') {
+    if (engine === 'free' || engine === 'best') {
         transcribeBtn.disabled = !(hasVideo && !isTranscribing);
         if (!hasVideo) {
             transcribeHelpMsg.textContent = "Please import a video to generate captions.";
@@ -1582,7 +1582,7 @@ async function triggerTranscription() {
             const partNum = i + 1;
             const totalParts = wavChunks.length;
             
-            const statusDesc = (engine === 'free' || engine === 'local' || engine === 'best')
+            const statusDesc = (engine === 'free' || engine === 'best')
                 ? `Listening closely to this part of your reel`
                 : `Enhancing captions for this part of your reel`;
                 
