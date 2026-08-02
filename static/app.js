@@ -1544,7 +1544,9 @@ async function finalizeGeneratedCaptions(allSegments) {
 }
 
 function canUseServerVideoTranscription() {
-    return Boolean(window.FormData && window.fetch && videoFile);
+    // Vercel serverless functions are stateless and do not support background threading.
+    // We always use the robust client-side audio extraction to ensure 100% compatibility.
+    return false;
 }
 
 // --- Update State of Transcribe Button ---
@@ -1639,7 +1641,7 @@ async function triggerTranscription() {
         updateProgressStatus("Formatting audio...", "Creating 16-bit PCM WAV chunks", 50);
         
         // Step 4: Chunking logic to keep each recognition request manageable.
-        const chunkDurationSecs = 300; // 5 minutes
+        const chunkDurationSecs = 30; // 30 seconds chunks for Vercel serverless compatibility
         const sampleRate = resampledBuffer.sampleRate;
         const totalDuration = resampledBuffer.duration;
         const chunkSize = chunkDurationSecs * sampleRate;
