@@ -251,36 +251,121 @@ document.addEventListener('DOMContentLoaded', () => {
     updateTimelinePlayhead();
 });
 
+const WIZARD_PAGES = ['home', 'upload', 'edit', 'export'];
+
 function initAppRouter() {
     window.addEventListener('hashchange', renderRoute);
     renderRoute();
 }
 
+function navigateToPage(pageName) {
+    // If trying to access edit or export pages without a video file, redirect back to upload page!
+    if ((pageName === 'edit' || pageName === 'export') && !videoFile) {
+        pageName = 'upload';
+    }
+    window.location.hash = pageName;
+    renderRoute();
+}
+
 function renderRoute() {
-    const route = (window.location.hash || '#home').replace('#', '') || 'home';
-    const normalizedRoute = ['home', 'create', 'templates', 'projects', 'settings'].includes(route)
-        ? route
-        : 'home';
+    let route = (window.location.hash || '#home').replace('#', '') || 'home';
+    
+    // Normalize routes
+    const validRoutes = ['home', 'upload', 'edit', 'export', 'templates', 'projects', 'settings'];
+    if (!validRoutes.includes(route)) {
+        route = 'home';
+    }
+    
+    // Force upload page if no video loaded and trying to edit/export
+    if ((route === 'edit' || route === 'export') && !videoFile) {
+        route = 'upload';
+        window.location.hash = 'upload';
+    }
 
-    document.querySelectorAll('.app-page').forEach(page => {
-        page.classList.toggle('active', page.dataset.page === normalizedRoute);
-    });
+    // Move video player dynamically between containers depending on page
+    if (route === 'edit') {
+        moveVideoPlayerToContainer('player-container');
+    } else if (route === 'export') {
+        moveVideoPlayerToContainer('export-player-wrapper');
+    }
 
-    document.body.classList.toggle('landing-active', normalizedRoute === 'home');
-    document.body.classList.toggle('studio-active', normalizedRoute === 'create');
+    // Set page transition states
+    const targetIdx = WIZARD_PAGES.indexOf(route);
+    
+    if (targetIdx !== -1) {
+        // It's a wizard page
+        WIZARD_PAGES.forEach((pageName, idx) => {
+            const pageEl = document.getElementById(`${pageName}-page`);
+            if (pageEl) {
+                pageEl.classList.remove('active', 'past');
+                if (idx < targetIdx) {
+                    pageEl.classList.add('past');
+                } else if (idx === targetIdx) {
+                    pageEl.classList.add('active');
+                }
+                // If idx > targetIdx, it remains on the right (hidden)
+            }
+        });
+        
+        // Hide secondary pages
+        document.querySelectorAll('.route-page').forEach(page => {
+            page.classList.add('hidden');
+        });
+    } else {
+        // It's a secondary page (templates, projects, settings)
+        // Hide all wizard pages
+        WIZARD_PAGES.forEach(pageName => {
+            const pageEl = document.getElementById(`${pageName}-page`);
+            if (pageEl) {
+                pageEl.classList.remove('active', 'past');
+            }
+        });
+        
+        // Show selected secondary page
+        document.querySelectorAll('.route-page').forEach(page => {
+            page.classList.toggle('hidden', page.dataset.page !== route);
+        });
+    }
 
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.toggle('active', item.dataset.nav === normalizedRoute);
-    });
+    // Sync progress tracking step nodes if step tracker exists
+    updateStepTrackerUI(route);
 
-    if (normalizedRoute === 'create') {
-        document.querySelector('.dashboard-wrapper').classList.remove('sidebar-open');
+    // Call layout adjustment
+    requestAnimationFrame(updateVideoStageLayout);
+}
+
+function moveVideoPlayerToContainer(containerId) {
+    const wrapper = document.getElementById('video-wrapper');
+    const targetContainer = document.getElementById(containerId);
+    if (wrapper && targetContainer && wrapper.parentElement !== targetContainer) {
+        targetContainer.appendChild(wrapper);
+        wrapper.classList.remove('hidden');
     }
 }
 
-function navigateToPage(pageName) {
-    window.location.hash = pageName;
-    renderRoute();
+function updateStepTrackerUI(route) {
+    const steps = document.querySelectorAll('.step-tracker .step');
+    const lines = document.querySelectorAll('.step-tracker .step-line');
+    
+    if (steps.length === 0) return;
+    
+    let activeStepIdx = 0;
+    if (route === 'upload') activeStepIdx = 0;
+    else if (route === 'edit') activeStepIdx = 1;
+    else if (route === 'export') activeStepIdx = 2;
+    
+    steps.forEach((step, idx) => {
+        step.classList.remove('active', 'completed');
+        if (idx < activeStepIdx) {
+            step.classList.add('completed');
+        } else if (idx === activeStepIdx) {
+            step.classList.add('active');
+        }
+    });
+    
+    lines.forEach((line, idx) => {
+        line.classList.toggle('active', idx < activeStepIdx);
+    });
 }
 
 // --- Dynamic Styling Configuration Management ---
@@ -782,85 +867,91 @@ function stopFunnyProgressMessages() {
 // --- Setup Event Listeners ---
 function setupEventListeners() {
     // Collapsible Sidebar
-    sidebarCollapseBtn.addEventListener('click', () => {
-        document.querySelector('.dashboard-wrapper').classList.toggle('collapsed-sidebar');
-        requestAnimationFrame(updateVideoStageLayout);
-    });
-
-    mobileDrawerBtn.addEventListener('click', () => {
-        document.querySelector('.dashboard-wrapper').classList.toggle('sidebar-open');
-    });
-
-    // Sidebar navigation clicks
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', () => {
-            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-            
-            // Switch sidebar-open off
-            document.querySelector('.dashboard-wrapper').classList.remove('sidebar-open');
-            
-            const targetNav = item.dataset.nav;
-            if (targetNav === 'settings') {
-                navigateToPage('settings');
-            } else if (targetNav === 'templates') {
-                navigateToPage('templates');
-            } else if (targetNav === 'projects') {
-                navigateToPage('projects');
-            } else {
-                navigateToPage('create');
-                switchTab('transcribe-tab');
-            }
+    if (sidebarCollapseBtn) {
+        sidebarCollapseBtn.addEventListener('click', () => {
+            const wrapper = document.querySelector('.dashboard-wrapper');
+            if (wrapper) wrapper.classList.toggle('collapsed-sidebar');
+            requestAnimationFrame(updateVideoStageLayout);
         });
-    });
+    }
 
-    document.querySelectorAll('.template-card a').forEach(link => {
-        link.addEventListener('click', (e) => {
+    if (mobileDrawerBtn) {
+        mobileDrawerBtn.addEventListener('click', () => {
+            const wrapper = document.querySelector('.dashboard-wrapper');
+            if (wrapper) wrapper.classList.toggle('sidebar-open');
+        });
+    }
+
+    // Template selection clicks
+    document.querySelectorAll('.template-card button, .template-card .btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
             const card = e.target.closest('.template-card');
             const templateName = card && card.dataset.template;
             if (templateName) {
                 document.querySelectorAll('.template-card').forEach(item => item.classList.remove('selected'));
                 card.classList.add('selected');
                 applyPresetDefaults(templateName);
-                switchTab('style-tab');
+                if (videoFile) {
+                    navigateToPage('edit');
+                } else {
+                    navigateToPage('upload');
+                }
                 showToast(`${card.querySelector('h3').textContent} template applied.`);
             }
         });
     });
 
-    // Workflow node clicks (Wizard switcher)
-    stepNodes.forEach(node => {
-        node.addEventListener('click', () => {
-            const stepNum = parseInt(node.dataset.step);
-            if (stepNum === 1) {
-                switchTab('transcribe-tab');
-            } else if (stepNum === 2 && !tabEditBtn.hasAttribute('disabled')) {
-                switchTab('edit-tab');
-            } else if (stepNum === 3 && !tabStyleBtn.hasAttribute('disabled')) {
-                switchTab('style-tab');
-            } else if (stepNum === 4 && !tabExportBtn.hasAttribute('disabled')) {
-                switchTab('export-tab');
+    // Page 3 Next Button
+    const goExportBtn = document.getElementById('go-to-export-btn');
+    if (goExportBtn) {
+        goExportBtn.addEventListener('click', () => {
+            navigateToPage('export');
+        });
+    }
+
+    // Page 4 Start Over / Reset Buttons
+    const startOverBtns = document.querySelectorAll('#start-over-btn, .start-over-btn');
+    startOverBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Stop playback
+            videoPlayer.pause();
+            videoPlayer.src = '';
+            if (videoUrl) {
+                URL.revokeObjectURL(videoUrl);
             }
+            videoFile = null;
+            videoUrl = null;
+            subtitles = [];
+            activeSegmentIndex = -1;
+            lastText = '';
+            
+            // Toggle visibility classes back to default
+            document.getElementById('media-info-box').classList.add('hidden');
+            document.getElementById('upload-zone').classList.remove('hidden');
+            document.getElementById('transcribe-btn').disabled = true;
+            document.getElementById('transcribe-help-msg').classList.remove('hidden');
+            
+            // Clear timeline
+            captionTrackContent.innerHTML = `<div class="caption-track-empty">Timeline empty. Generate captions to build caption tracks.</div>`;
+            videoTrackBlock.textContent = 'Upload video to render video track...';
+            renderSubtitleCards();
+            updateTranscribeButtonState();
+            
+            navigateToPage('upload');
         });
     });
 
     function switchTab(tabId) {
-        tabPanes.forEach(p => p.classList.remove('active'));
-        const pane = document.getElementById(tabId);
-        if (pane) pane.classList.add('active');
-
-        // Light up step dots
-        stepNodes.forEach(n => {
-            const num = parseInt(n.dataset.step);
-            let active = false;
-            if (tabId === 'transcribe-tab' && num === 1) active = true;
-            if (tabId === 'edit-tab' && num === 2) active = true;
-            if (tabId === 'style-tab' && num === 3) active = true;
-            if (tabId === 'export-tab' && num === 4) active = true;
-            n.classList.toggle('active', active);
-        });
-
-        syncSubtitlesOverlay();
+        // Compatibility wrapper for legacy helpers
+        if (tabId === 'edit-tab') {
+            navigateToPage('edit');
+        } else if (tabId === 'style-tab') {
+            navigateToPage('edit');
+        } else if (tabId === 'export-tab') {
+            navigateToPage('export');
+        } else {
+            navigateToPage('upload');
+        }
     }
 
     // Aspect Ratio format switcher
@@ -1330,7 +1421,9 @@ function handleVideoSelect(file) {
     requestAnimationFrame(updateVideoStageLayout);
     
     // Advance progress indicator workflow
-    stepNodes[1].classList.add('active'); // active Edit node
+    if (stepNodes && stepNodes[1]) {
+        stepNodes[1].classList.add('active'); // active Edit node
+    }
     
     updateTranscribeButtonState();
     showToast("Video loaded successfully!");
@@ -1433,15 +1526,14 @@ async function finalizeGeneratedCaptions(allSegments) {
     updateProgressStatus("Processing completed!", "Formatting subtitle segments", 100);
     showToast("Transcription generated successfully!");
 
-    tabEditBtn.removeAttribute('disabled');
-    tabStyleBtn.removeAttribute('disabled');
-    tabExportBtn.removeAttribute('disabled');
+    if (tabEditBtn) tabEditBtn.removeAttribute('disabled');
+    if (tabStyleBtn) tabStyleBtn.removeAttribute('disabled');
+    if (tabExportBtn) tabExportBtn.removeAttribute('disabled');
 
-    stepNodes[2].classList.add('active');
-    stepNodes[3].classList.add('active');
+    if (stepNodes && stepNodes[2]) stepNodes[2].classList.add('active');
+    if (stepNodes && stepNodes[3]) stepNodes[3].classList.add('active');
 
-    const editTabBtn = Array.from(tabBtns).find(btn => btn.dataset.tab === 'edit-tab');
-    if (editTabBtn) editTabBtn.click();
+    navigateToPage('edit');
 
     renderSubtitleCards();
     renderTimeline();

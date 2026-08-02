@@ -3365,3 +3365,355 @@ a:focus-visible {
         padding: 16px;
     }
 }
+
+/* ==========================================================================
+   WIZARD MULTI-PAGE WRAPPERS & TRANSITION ANIMATIONS
+   ========================================================================== */
+.wizard-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--page-gradient);
+}
+
+.wizard-page {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(100%, 0, 0);
+    transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.65s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.wizard-page.active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate3d(0, 0, 0);
+    z-index: 10;
+}
+
+.wizard-page.past {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(-100%, 0, 0);
+    z-index: 5;
+}
+
+/* Page 1 (Landing Page) scroll override */
+#home-page {
+    overflow-y: auto;
+}
+#home-page.past {
+    transform: translate3d(0, -100%, 0); /* slides up */
+}
+
+/* Wizard Header Layout */
+.wizard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(13, 17, 27, 0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 100;
+    height: 72px;
+    flex-shrink: 0;
+}
+
+/* Step Tracker UI */
+.step-tracker {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.step-tracker .step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-family: var(--font-heading);
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.step-tracker .step span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: var(--transition-fast);
+}
+
+.step-tracker .step-line {
+    width: 48px;
+    height: 2px;
+    background: var(--border-color);
+    transition: var(--transition-normal);
+}
+
+.step-tracker .step.active {
+    color: var(--accent-primary);
+}
+
+.step-tracker .step.active span {
+    border-color: var(--accent-primary);
+    background: var(--accent-soft);
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.step-tracker .step.completed {
+    color: var(--success);
+}
+
+.step-tracker .step.completed span {
+    border-color: var(--success);
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+}
+
+.step-tracker .step-line.active {
+    background: var(--accent-gradient-flat);
+}
+
+/* Wizard Workspaces */
+.wizard-workspace {
+    flex-grow: 1;
+    padding: 24px;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Page 2 (Upload) Workspace */
+.upload-workspace {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow-y: auto;
+}
+
+.setup-card {
+    width: 100%;
+    max-width: 600px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    padding: 32px;
+    background: var(--panel-gradient);
+    box-shadow: var(--shadow-lg);
+    transition: box-shadow 0.4s ease, border-color 0.4s ease;
+}
+
+.setup-card:hover {
+    border-color: rgba(255, 112, 67, 0.25);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 112, 67, 0.08);
+}
+
+.setup-card-header h2 {
+    font-size: 1.75rem;
+    font-family: var(--font-heading);
+    margin-bottom: 8px;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.setup-card-header p {
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+    font-size: 0.95rem;
+}
+
+.setup-fields-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 24px;
+}
+
+/* Page 3 (Editor) Workspace */
+.editor-workspace-layout {
+    display: grid;
+    grid-template-columns: 360px 1fr 360px;
+    gap: 20px;
+    height: calc(100vh - 72px);
+    padding: 20px;
+}
+
+.editor-col {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+}
+
+.editor-col .col-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.editor-col .col-content {
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+.scrollable-area {
+    overflow-y: auto;
+    padding: 20px;
+}
+
+/* Custom Scrollbars */
+.scrollable-area::-webkit-scrollbar,
+.scrollable-area::-webkit-scrollbar {
+    width: 6px;
+}
+.scrollable-area::-webkit-scrollbar-track {
+    background: transparent;
+}
+.scrollable-area::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+}
+.scrollable-area::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.col-preview-center {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.video-preview-card {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    padding: 16px;
+}
+
+/* Page 4 (Export) Workspace */
+.export-workspace {
+    display: grid;
+    grid-template-columns: 1fr 480px;
+    gap: 30px;
+    padding: 30px;
+    height: calc(100vh - 72px);
+    overflow: hidden;
+}
+
+.export-preview-panel {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    height: 100%;
+    padding: 24px;
+}
+
+.export-video-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.export-details-panel {
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    overflow-y: auto;
+    height: 100%;
+}
+
+.export-details-panel h2 {
+    font-size: 1.8rem;
+    font-family: var(--font-heading);
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Micro-interaction Scale & Glow Animations */
+.btn-interactive {
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.btn-interactive:hover {
+    transform: translateY(-2px);
+}
+
+.btn-interactive:active {
+    transform: translateY(1px) scale(0.97);
+}
+
+/* Upload zone scaling */
+.upload-zone {
+    transition: border-color 0.3s ease, background-color 0.3s ease, transform 0.3s ease;
+}
+
+.upload-zone:hover {
+    border-color: var(--accent-primary);
+    background: rgba(255, 112, 67, 0.04);
+    transform: scale(1.01);
+}
+
+/* Subtitle Edit Card Hover styles */
+.subtitle-card {
+    transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+.subtitle-card:hover {
+    transform: translateX(4px);
+    border-color: rgba(255, 255, 255, 0.15);
+    background-color: var(--bg-surface-elevated);
+}
+
+/* Style presets grid */
+.style-presets-grid .preset-card {
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.style-presets-grid .preset-card:hover {
+    transform: scale(1.03);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 1024px) {
+    .editor-workspace-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+        overflow-y: auto;
+    }
+    .export-workspace {
+        grid-template-columns: 1fr;
+        height: auto;
+        overflow-y: auto;
+    }
+}
+
