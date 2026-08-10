@@ -1127,18 +1127,18 @@ function setupEventListeners() {
         lastText = '';
         
         // Hide player, show upload
-        playerContainer.classList.add('empty-player-state');
-        videoWrapper.classList.add('hidden');
-        playerPlaceholder.classList.remove('hidden');
-        stageToolbar.classList.add('hidden');
+        if (playerContainer) playerContainer.classList.add('empty-player-state');
+        if (videoWrapper) videoWrapper.classList.add('hidden');
+        if (playerPlaceholder) playerPlaceholder.classList.remove('hidden');
+        if (stageToolbar) stageToolbar.classList.add('hidden');
         
         uploadZone.classList.remove('hidden');
         document.getElementById('media-info-box').classList.add('hidden');
         
         // Disable tabs
-        tabEditBtn.setAttribute('disabled', 'true');
-        tabStyleBtn.setAttribute('disabled', 'true');
-        tabExportBtn.setAttribute('disabled', 'true');
+        if (tabEditBtn) tabEditBtn.setAttribute('disabled', 'true');
+        if (tabStyleBtn) tabStyleBtn.setAttribute('disabled', 'true');
+        if (tabExportBtn) tabExportBtn.setAttribute('disabled', 'true');
         
         switchTab('transcribe-tab');
         
@@ -1414,10 +1414,10 @@ function handleVideoSelect(file) {
     document.getElementById('uploaded-file-name').textContent = file.name;
     
     // Show player
-    playerContainer.classList.remove('empty-player-state');
-    videoWrapper.classList.remove('hidden');
-    playerPlaceholder.classList.add('hidden');
-    stageToolbar.classList.remove('hidden');
+    if (playerContainer) playerContainer.classList.remove('empty-player-state');
+    if (videoWrapper) videoWrapper.classList.remove('hidden');
+    if (playerPlaceholder) playerPlaceholder.classList.add('hidden');
+    if (stageToolbar) stageToolbar.classList.remove('hidden');
     requestAnimationFrame(updateVideoStageLayout);
     
     // Advance progress indicator workflow
