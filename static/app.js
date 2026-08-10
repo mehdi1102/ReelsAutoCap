@@ -1041,15 +1041,17 @@ function setupEventListeners() {
         updateTranscribeButtonState();
     });
 
-    toggleKeyVisibilityBtn.addEventListener('click', () => {
-        if (apiKeyInput.type === 'password') {
-            apiKeyInput.type = 'text';
-            toggleKeyVisibilityBtn.textContent = 'Hide';
-        } else {
-            apiKeyInput.type = 'password';
-            toggleKeyVisibilityBtn.textContent = 'Show';
-        }
-    });
+    if (toggleKeyVisibilityBtn) {
+        toggleKeyVisibilityBtn.addEventListener('click', () => {
+            if (apiKeyInput.type === 'password') {
+                apiKeyInput.type = 'text';
+                toggleKeyVisibilityBtn.textContent = 'Hide';
+            } else {
+                apiKeyInput.type = 'password';
+                toggleKeyVisibilityBtn.textContent = 'Show';
+            }
+        });
+    }
 
     engineSelect.addEventListener('change', () => {
         localStorage.setItem('transcribe_engine', engineSelect.value);
@@ -1375,7 +1377,7 @@ function setupEventListeners() {
 
 function setCaptionActionsBusy(isBusy) {
     [smartPolishBtn, splitLongBtn, autoPlaceBtn].forEach(button => {
-        button.disabled = isBusy;
+        if (button) button.disabled = isBusy;
     });
 }
 
@@ -1389,9 +1391,9 @@ async function runCaptionEditorAction(action) {
 
 function updateCaptionActionButtons() {
     const hasCaptions = subtitles.length > 0;
-    smartPolishBtn.disabled = !hasCaptions;
-    splitLongBtn.disabled = !hasCaptions;
-    autoPlaceBtn.disabled = !hasCaptions || !Number.isFinite(videoPlayer.duration);
+    if (smartPolishBtn) smartPolishBtn.disabled = !hasCaptions;
+    if (splitLongBtn) splitLongBtn.disabled = !hasCaptions;
+    if (autoPlaceBtn) autoPlaceBtn.disabled = !hasCaptions || !Number.isFinite(videoPlayer.duration);
 }
 
 // --- Import Video Selection Handler ---
