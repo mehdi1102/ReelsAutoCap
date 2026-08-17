@@ -1,6 +1,6 @@
-# Auto-Cap: AI Video Caption Generator
+# SubSync: AI Video Caption Generator
 
-Auto-Cap is a premium, lightweight, self-hosted web application that listens to the audio track of your video files and generates highly accurate subtitles/captions using Google Gemini models (Gemini 1.5 Flash, 2.0 Flash, 1.5 Pro).
+SubSync is a premium, lightweight, self-hosted web application that listens to the audio track of your video files and generates highly accurate subtitles/captions using Google Gemini models (Gemini 1.5 Flash, 2.0 Flash, 1.5 Pro).
 
 ## Key Features
 
