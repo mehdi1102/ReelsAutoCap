@@ -1192,32 +1192,7 @@ function setupEventListeners() {
         updateTimelinePlayhead();
     });
 
-    videoPlayer.addEventListener('error', () => {
-        const err = videoPlayer.error;
-        let msg = "Failed to load video file.";
-        if (err) {
-            if (err.code === 4) {
-                msg = "Video format or codec is not supported by your browser. Try converting it to standard MP4 (H.264).";
-            } else if (err.code === 3) {
-                msg = "Video decoding failed.";
-            } else if (err.code === 2) {
-                msg = "Network error while loading video.";
-            }
-        }
-        showToast(msg, "error");
-        
-        // Reset state
-        videoPlayer.src = '';
-        videoFile = null;
-        if (videoUrl) {
-            URL.revokeObjectURL(videoUrl);
-            videoUrl = null;
-        }
-        uploadZone.classList.remove('hidden');
-        const infoBox = document.getElementById('media-info-box');
-        if (infoBox) infoBox.classList.add('hidden');
-        updateTranscribeButtonState();
-    });
+
 
     progressContainer.addEventListener('click', (e) => {
         const rect = progressContainer.getBoundingClientRect();
@@ -1431,9 +1406,10 @@ function updateCaptionActionButtons() {
 
 // --- Import Video Selection Handler ---
 function handleVideoSelect(file) {
+    const mimeType = file.type || '';
     const ext = file.name ? file.name.split('.').pop().toLowerCase() : '';
     const validExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v', '3gp', 'flv'];
-    if (!file.type.startsWith('video/') && !validExtensions.includes(ext)) {
+    if (!mimeType.startsWith('video/') && !validExtensions.includes(ext)) {
         showToast("Please choose a valid video file.", "error");
         return;
     }
