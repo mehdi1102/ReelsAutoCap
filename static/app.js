@@ -1,3 +1,22 @@
+// --- safeStorage Helper ---
+const safeStorage = {
+    getItem(key) {
+        try {
+            return localStorage.getItem(key);
+        } catch (e) {
+            console.warn("localStorage.getItem blocked:", e);
+            return null;
+        }
+    },
+    setItem(key, value) {
+        try {
+            localStorage.setItem(key, value);
+        } catch (e) {
+            console.warn("localStorage.setItem blocked:", e);
+        }
+    }
+};
+
 // --- Application State ---
 let videoFile = null;
 let videoUrl = null;
@@ -157,7 +176,7 @@ function applyTheme(themeName) {
     document.body.dataset.theme = safeTheme;
     document.body.classList.remove('signature-theme', 'dark-theme', 'light-theme');
     document.body.classList.add(`${safeTheme}-theme`);
-    localStorage.setItem('auto_cap_theme', safeTheme);
+    safeStorage.setItem('auto_cap_theme', safeTheme);
 
     const metaTheme = document.querySelector('meta[name="theme-color"]') || document.createElement('meta');
     metaTheme.name = 'theme-color';
@@ -209,31 +228,31 @@ const MUSIC_MARKER = '\u266a \u266b \u266a';
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     // Load Saved Settings
-    applyTheme(localStorage.getItem('auto_cap_theme') || 'signature');
+    applyTheme(safeStorage.getItem('auto_cap_theme') || 'signature');
 
-    const savedApiKey = localStorage.getItem('gemini_api_key');
+    const savedApiKey = safeStorage.getItem('gemini_api_key');
     if (savedApiKey) {
         apiKeyInput.value = savedApiKey;
     }
     
-    const savedModel = localStorage.getItem('gemini_model');
+    const savedModel = safeStorage.getItem('gemini_model');
     if (savedModel) {
         modelSelect.value = savedModel;
     }
 
-    const savedLanguage = localStorage.getItem('gemini_language');
-    const languageDefaultVersion = localStorage.getItem('caption_language_default_v2');
+    const savedLanguage = safeStorage.getItem('gemini_language');
+    const languageDefaultVersion = safeStorage.getItem('caption_language_default_v2');
     if (languageDefaultVersion !== 'english-v3') {
         languageSelect.value = 'en-US';
-        localStorage.setItem('gemini_language', 'en-US');
-        localStorage.setItem('caption_language_default_v2', 'english-v3');
+        safeStorage.setItem('gemini_language', 'en-US');
+        safeStorage.setItem('caption_language_default_v2', 'english-v3');
     } else if (savedLanguage && Array.from(languageSelect.options).some(option => option.value === savedLanguage)) {
         languageSelect.value = savedLanguage;
     } else {
         languageSelect.value = 'en-US';
     }
 
-    const savedEngine = localStorage.getItem('transcribe_engine');
+    const savedEngine = safeStorage.getItem('transcribe_engine');
     if (savedEngine) {
         engineSelect.value = savedEngine;
     }
@@ -482,8 +501,8 @@ function clampCustomPosition() {
         styleSource.customTop = `${topVal}%`;
         
         if (styleSource === captionStyle) {
-            localStorage.setItem('cc_custom_left', captionStyle.customLeft);
-            localStorage.setItem('cc_custom_top', captionStyle.customTop);
+            safeStorage.setItem('cc_custom_left', captionStyle.customLeft);
+            safeStorage.setItem('cc_custom_top', captionStyle.customTop);
         }
     }
 }
@@ -651,7 +670,7 @@ function updateStyleProperty(key, value, isLocalStorage = true) {
         });
         if (isLocalStorage) {
             let lsKey = 'cc_' + key.toLowerCase();
-            localStorage.setItem(lsKey, value);
+            safeStorage.setItem(lsKey, value);
         }
     }
     
@@ -1037,7 +1056,7 @@ function setupEventListeners() {
 
     // Settings Toggle inside transcribe setup
     apiKeyInput.addEventListener('input', () => {
-        localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
+        safeStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
         updateTranscribeButtonState();
     });
 
@@ -1054,17 +1073,17 @@ function setupEventListeners() {
     }
 
     engineSelect.addEventListener('change', () => {
-        localStorage.setItem('transcribe_engine', engineSelect.value);
+        safeStorage.setItem('transcribe_engine', engineSelect.value);
         toggleEngineUI();
         updateTranscribeButtonState();
     });
     
     modelSelect.addEventListener('change', () => {
-        localStorage.setItem('gemini_model', modelSelect.value);
+        safeStorage.setItem('gemini_model', modelSelect.value);
     });
     
     languageSelect.addEventListener('change', () => {
-        localStorage.setItem('gemini_language', languageSelect.value);
+        safeStorage.setItem('gemini_language', languageSelect.value);
     });
 
     if (themeSelect) {
