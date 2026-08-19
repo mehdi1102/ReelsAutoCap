@@ -1110,7 +1110,11 @@ function setupEventListeners() {
         }
     });
 
-
+    uploadZone.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL' && !e.target.closest('label') && !e.target.closest('input')) {
+            videoInput.click();
+        }
+    });
 
     videoInput.addEventListener('change', () => {
         if (videoInput.files.length > 0) {
