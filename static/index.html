@@ -126,7 +126,7 @@
                     
                     <div class="setup-card-body">
                         <!-- Drag and Drop Video Upload Zone -->
-                        <div id="upload-zone" class="upload-zone">
+                        <label for="video-input" id="upload-zone" class="upload-zone" style="cursor: pointer; display: block;">
                             <div class="upload-icon-pulse">
                                 <svg viewBox="0 0 24 24" width="40" height="40" stroke="currentColor" stroke-width="1.5" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                             </div>
@@ -134,8 +134,8 @@
                             <p class="upload-help-text">Drag and drop file here, or click to browse</p>
                             <span class="file-info-note">Supports MP4, WebM, MOV, AVI</span>
                             <input type="file" id="video-input" accept="video/*" style="display: none;">
-                            <button class="btn btn-primary btn-sm btn-interactive" onclick="document.getElementById('video-input').click()">Browse Files</button>
-                        </div>
+                            <button class="btn btn-primary btn-sm btn-interactive">Browse Files</button>
+                        </label>
 
                         <!-- Uploaded Video Status -->
                         <div id="media-info-box" class="media-info-box hidden">

@@ -1110,11 +1110,7 @@ function setupEventListeners() {
         }
     });
 
-    uploadZone.addEventListener('click', (e) => {
-        if (e.target !== videoInput && !e.target.closest('button') && !e.target.closest('input')) {
-            videoInput.click();
-        }
-    });
+
 
     videoInput.addEventListener('change', () => {
         if (videoInput.files.length > 0) {
